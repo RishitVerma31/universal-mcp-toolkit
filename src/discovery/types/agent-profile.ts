@@ -87,6 +87,10 @@ export const agentMetadataSchema = z.object({
 	discoveryTimestamp: z
 		.string()
 		.describe("ISO timestamp when this profile was discovered or ingested"),
+	documentationUrl: httpUrlSchema.optional().describe("Documentation or specification URL"),
+	iconUrl: httpUrlSchema.optional().describe("Icon or avatar image URL"),
+	a2a: z.record(z.string(), z.unknown()).optional().describe("Protocol-specific A2A metadata"),
+	extra: z.record(z.string(), z.unknown()).optional().describe("Arbitrary extension metadata"),
 });
 export type AgentMetadata = z.infer<typeof agentMetadataSchema>;
 
