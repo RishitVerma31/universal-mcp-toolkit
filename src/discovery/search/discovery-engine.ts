@@ -6,6 +6,7 @@ import type {
 } from "../types/connector.ts";
 import type { AgentProfile } from "../types/agent-profile.ts";
 import { McpRegistryConnector } from "../connectors/mcp-registry/connector.ts";
+import { A2AAgentCardConnector } from "../connectors/a2a/connector.ts";
 import { deduplicateProfiles } from "../deduplication/deduplicator.ts";
 
 export class DiscoveryEngine {
@@ -17,8 +18,9 @@ export class DiscoveryEngine {
 				this.registerConnector(c);
 			}
 		} else {
-			// Register default MCP Registry connector
+			// Register default MCP Registry and A2A connectors
 			this.registerConnector(new McpRegistryConnector());
+			this.registerConnector(new A2AAgentCardConnector());
 		}
 	}
 

@@ -7,6 +7,7 @@ import { registerUrlParseTool } from "./developer/url-parse.ts";
 import { registerSearchMcpRegistryTool } from "./discovery/search-mcp-registry.ts";
 import { registerGetMcpServerDetailsTool } from "./discovery/get-mcp-server-details.ts";
 import { registerValidateAgentProfileTool } from "./discovery/validate-agent-profile.ts";
+import { registerDiscoverA2aAgentTool } from "./discovery/discover-a2a-agent.ts";
 
 export * from "./types.ts";
 
@@ -59,6 +60,11 @@ export {
 	handleValidateAgentProfile,
 	registerValidateAgentProfileTool,
 } from "./discovery/validate-agent-profile.ts";
+export {
+	discoverA2aAgentInputSchema,
+	handleDiscoverA2aAgent,
+	registerDiscoverA2aAgentTool,
+} from "./discovery/discover-a2a-agent.ts";
 
 export function registerAllTools(server: McpServer): void {
 	// 5 Developer Utilities (v0.1.0)
@@ -68,8 +74,11 @@ export function registerAllTools(server: McpServer): void {
 	registerHashTextTool(server);
 	registerUrlParseTool(server);
 
-	// 3 Agent Discovery Tools (v0.2.0)
+	// 3 Registry Discovery Tools (v0.2.0)
 	registerSearchMcpRegistryTool(server);
 	registerGetMcpServerDetailsTool(server);
 	registerValidateAgentProfileTool(server);
+
+	// 1 A2A Discovery Tool (v0.3.0)
+	registerDiscoverA2aAgentTool(server);
 }

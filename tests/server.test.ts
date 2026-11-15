@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createServer } from "../src/server.ts";
 
-test("server: instantiates McpServer and registers all 8 toolkit tools", () => {
+test("server: instantiates McpServer and registers all 9 toolkit tools", () => {
 	const server = createServer();
 	assert.ok(server, "Server should be defined");
 
@@ -17,6 +17,8 @@ test("server: instantiates McpServer and registers all 8 toolkit tools", () => {
 		"search_mcp_registry",
 		"get_mcp_server_details",
 		"validate_agent_profile",
+		// 1 A2A Discovery Tool (v0.3.0)
+		"discover_a2a_agent",
 	];
 
 	const registeredTools = (server as any)["_registeredTools"];
@@ -26,11 +28,7 @@ test("server: instantiates McpServer and registers all 8 toolkit tools", () => {
 		assert.ok(toolName in registeredTools, `Tool '${toolName}' must be registered`);
 	}
 
-	assert.equal(
-		Object.keys(registeredTools).length,
-		8,
-		"Server must register exactly eight tools",
-	);
+	assert.equal(Object.keys(registeredTools).length, 9, "Server must register exactly nine tools");
 
 	// Verify original calculator tools remain completely removed
 	assert.equal(

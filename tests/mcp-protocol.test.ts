@@ -24,14 +24,14 @@ function getTextContent(res: { content?: Array<{ type: string; text?: string }> 
 	return block.text;
 }
 
-test("mcp protocol e2e: connects, initializes, and lists exactly 8 tools", async () => {
+test("mcp protocol e2e: connects, initializes, and lists exactly 9 tools", async () => {
 	const transport = createTestTransport();
 	const client = new Client({ name: "e2e-test-client", version: "1.0.0" });
 
 	await client.connect(transport);
 
 	const toolsList = await client.listTools();
-	assert.equal(toolsList.tools.length, 8);
+	assert.equal(toolsList.tools.length, 9);
 
 	const toolNames = toolsList.tools.map((t) => t.name);
 	const expectedTools = [
@@ -43,6 +43,7 @@ test("mcp protocol e2e: connects, initializes, and lists exactly 8 tools", async
 		"search_mcp_registry",
 		"get_mcp_server_details",
 		"validate_agent_profile",
+		"discover_a2a_agent",
 	];
 
 	for (const expected of expectedTools) {
@@ -167,6 +168,14 @@ test("mcp protocol e2e: error handling returns isError=true without crashing", a
 	});
 	assert.equal(errProfile.isError, true);
 	assert.match(getTextContent(errProfile as any), /Invalid JSON/);
+
+	// Invalid discover_a2a_agent parameter (SSRF target)
+	const errA2a = await client.callTool({
+		name: "discover_a2a_agent",
+		arguments: { agent_url: "http://localhost:8080" },
+	});
+	assert.equal(errA2a.isError, true);
+	assert.match(getTextContent(errA2a as any), /A2A Agent discovery failed|Security violation/);
 
 	await client.close();
 });
@@ -296,7 +305,7 @@ test("mcp protocol e2e: invokes discovery tools (validate_agent_profile, search_
 	await client.close();
 });
 
-test("mcp protocol e2e: full session connects, lists 8 tools, and calls all 8 tools", async () => {
+test("mcp protocol e2e: full session connects, lists 9 tools, and calls all 9 tools", async () => {
 	const originalFetch = globalThis.fetch;
 	try {
 		globalThis.fetch = (async (input: RequestInfo | URL) => {
@@ -348,16 +357,42 @@ test("mcp protocol e2e: full session connects, lists 8 tools, and calls all 8 to
 					{ status: 200, headers: { "Content-Type": "application/json" } },
 				);
 			}
+			if (urlStr === "https://test-agent.example.com/.well-known/agent-card.json") {
+				return new Response(
+					JSON.stringify({
+						name: "Test A2A Agent",
+						description: "AI agent toolkit",
+						version: "1.0.0",
+						supportedInterfaces: [
+							{
+								url: "https://test-agent.example.com/a2a",
+								protocolBinding: "JSON-RPC",
+								protocolVersion: "1.0",
+							},
+						],
+						capabilities: {
+							streaming: false,
+						},
+						skills: [
+							{
+								name: "echo",
+								description: "Echo input",
+							},
+						],
+					}),
+					{ status: 200, headers: { "Content-Type": "application/json" } },
+				);
+			}
 			return new Response("Not Found", { status: 404 });
 		}) as typeof fetch;
 
 		const transport = createTestTransport();
-		const client = new Client({ name: "e2e-all-8-client", version: "1.0.0" });
+		const client = new Client({ name: "e2e-all-9-client", version: "1.0.0" });
 		await client.connect(transport);
 
 		// List tools
 		const toolsList = await client.listTools();
-		assert.equal(toolsList.tools.length, 8);
+		assert.equal(toolsList.tools.length, 9);
 
 		// 1. json_format
 		const r1 = await client.callTool({
@@ -420,6 +455,18 @@ test("mcp protocol e2e: full session connects, lists 8 tools, and calls all 8 to
 		assert.equal(r8.isError, undefined);
 		const s8 = JSON.parse(getTextContent(r8 as any));
 		assert.equal(s8.valid, true);
+
+		// 9. discover_a2a_agent
+		const r9 = await client.callTool({
+			name: "discover_a2a_agent",
+			arguments: { agent_url: "https://test-agent.example.com" },
+		});
+		assert.equal(r9.isError, undefined);
+		const s9 = JSON.parse(getTextContent(r9 as any));
+		assert.equal(s9.agent.name, "Test A2A Agent");
+		assert.equal(s9.profile.source.type, "a2a");
+		assert.equal(s9.profile.trust.status, "declared");
+		assert.equal(s9.profile.classification.skills[0], "echo");
 
 		await client.close();
 	} finally {
