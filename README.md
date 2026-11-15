@@ -2,7 +2,7 @@
 
 A modular, cloud-deployable universal Model Context Protocol (MCP) server toolkit built for Cloudflare Workers.
 
-`universal-mcp-toolkit` provides a stateless developer utility toolkit adhering to the official Model Context Protocol standard. It is designed to be client-agnostic, secure, and deployable within Cloudflare Workers free-tier allowances.
+`universal-mcp-toolkit` provides a stateless developer utility and agent discovery toolkit adhering to the official Model Context Protocol standard. It is designed to be client-agnostic, secure, free-tier friendly, and deployable within Cloudflare Workers allowances.
 
 > **Important**: Every developer deploys their own independent instance into their own Cloudflare account and receives their own endpoint. There is no shared, centralized, or managed endpoint operated by the repository owner.
 
@@ -11,19 +11,24 @@ A modular, cloud-deployable universal Model Context Protocol (MCP) server toolki
 ## Key Features
 
 - **MCP-Standard**: Built using the official MCP TypeScript SDK and Streamable HTTP transport, designed for compatibility with MCP-compliant clients.
+- **Agent Discovery Foundation (v0.2.0)**: Discover and inspect published MCP servers from the official registry (`registry.modelcontextprotocol.io`), normalized into the standardized Universal Agent Profile schema.
+- **Universal Agent Profile**: Standardized, extensible agent descriptor modeling identity, communication endpoints, capabilities, authentication requirements, and trust levels.
+- **Pluggable Discovery Architecture**: Modular connector interface (`DiscoveryConnector`) and safe engine (`DiscoveryEngine`) supporting future multi-source aggregation (A2A, GitHub, custom catalogs).
+- **Stateless & Resilient**: Pure stateless operation with timeout safeguards, error normalization, deduplication, and zero persistent database overhead.
 - **Independent Serverless Deployment**: Hosted on Cloudflare Workers for edge execution without managing physical or virtual servers.
 - **Free-Tier Friendly**: Uses standard Web APIs (Web Crypto, URL, TextEncoder/TextDecoder). Zero paid dependencies, subscriptions, or external paid APIs.
-- **Strict Validation**: All tool parameters are validated at runtime via Zod schemas.
-- **Structured Error Handling**: Catches malformed input and returns structured MCP error responses (`isError: true`) without causing server crashes.
-- **Modular Design**: Isolated tool definitions with centralized registration and automated unit and protocol tests.
+- **Strict Validation**: All tool parameters and data profiles are validated at runtime via Zod schemas.
+- **Structured Error Handling**: Catches malformed input and network exceptions, returning structured MCP error responses (`isError: true`) without causing server crashes.
 
 ---
 
 ## Available Tools
 
-The toolkit exposes five stateless developer utility tools:
+The toolkit exposes eight tools across developer utilities and agent discovery:
 
-### 1. `json_format`
+### Developer Utilities
+
+#### 1. `json_format`
 
 Format and validate JSON input with customizable indentation.
 
@@ -32,7 +37,7 @@ Format and validate JSON input with customizable indentation.
     - `indent` (_integer_, optional, default `2`, range `0`–`8`): Number of spaces for indentation. `0` produces compact minified JSON.
 - **Output**: Formatted JSON string or descriptive syntax error.
 
-### 2. `base64_encode`
+#### 2. `base64_encode`
 
 Encode text into Base64 format with full Unicode and emoji support.
 
@@ -40,7 +45,7 @@ Encode text into Base64 format with full Unicode and emoji support.
     - `text` (_string_, required): UTF-8 text to encode.
 - **Output**: Base64-encoded string.
 
-### 3. `base64_decode`
+#### 3. `base64_decode`
 
 Decode Base64 strings into UTF-8 text with strict validation.
 
@@ -48,7 +53,7 @@ Decode Base64 strings into UTF-8 text with strict validation.
     - `encoded` (_string_, required): Base64-encoded string.
 - **Output**: Decoded UTF-8 string, or a structured error if the input contains invalid characters, incorrect padding, or invalid UTF-8 byte sequences.
 
-### 4. `hash_text`
+#### 4. `hash_text`
 
 Generate a cryptographic hash using standard Web Crypto (`crypto.subtle.digest`).
 
@@ -57,22 +62,251 @@ Generate a cryptographic hash using standard Web Crypto (`crypto.subtle.digest`)
     - `algorithm` (_enum_, optional, default `"SHA-256"`): Allowed options: `"SHA-256"`, `"SHA-384"`, `"SHA-512"`. Deprecated or weak algorithms (MD5, SHA-1) are rejected.
 - **Output**: Lowercase hexadecimal hash string.
 
-### 5. `url_parse`
+#### 5. `url_parse`
 
 Parse and inspect a URL without making outbound network requests.
 
 - **Inputs**:
     - `url` (_string_, required): Absolute URL string to inspect.
-- **Output**: Structured JSON containing:
-    - `protocol`: URL scheme (e.g., `"https:"`)
-    - `hostname`: Host name (e.g., `"example.com"`)
-    - `port`: Port string (e.g., `"8080"` or `""`)
-    - `pathname`: Path string (e.g., `"/path"`)
-    - `search`: Query string (e.g., `"?key=value"`)
-    - `hash`: Fragment identifier (e.g., `"#section"`)
-    - `origin`: Full origin (e.g., `"https://example.com:8080"`)
-    - `username`: Authentication username or `""`
-    - `isHttps`: Boolean flag indicating whether HTTPS is used
+- **Output**: Structured JSON containing protocol, hostname, port, pathname, search, hash, origin, username, and isHttps flag.
+
+---
+
+### Agent Discovery Foundation Tools
+
+#### 6. `search_mcp_registry`
+
+Search published servers on the official Model Context Protocol Registry (`https://registry.modelcontextprotocol.io`). Returns normalized Universal Agent Profiles and pagination metadata.
+
+- **Inputs**:
+    - `query` (_string_, required, 3–200 chars): Search keyword or substring (minimum 3 characters after trimming).
+    - `limit` (_integer_, optional, default `20`, range `1`–`100`): Maximum profiles to return.
+    - `cursor` (_string_, optional): Opaque pagination cursor from a previous response.
+    - `latest_only` (_boolean_, optional, default `true`): Whether to return only the latest version of each server. Set `false` to include historical versions.
+- **Output**: JSON payload with `query`, `latestOnly`, `count`, `nextCursor`, `source`, and `profiles` array.
+
+#### 7. `get_mcp_server_details`
+
+Retrieve detailed metadata and server manifests for a specific server from the official MCP Registry, mapped into a Universal Agent Profile. Allows inspecting any individual historical version or latest release.
+
+- **Inputs**:
+    - `server_name` (_string_, required): Reverse-DNS or unique server identifier (e.g. `ac.inference.sh/mcp` or `io.github.test/server`).
+    - `version` (_string_, optional, default `"latest"`): Target semantic version string (e.g. `"1.0.0"`) or `"latest"`.
+- **Output**: Complete normalized `AgentProfile` JSON object.
+
+#### 8. `validate_agent_profile`
+
+Statelessly validate and normalize a candidate agent profile against the Universal Agent Profile schema. Detects schema violations, highlights missing optional fields, reports unknown properties, and applies safe defaults.
+
+- **Inputs**:
+    - `profile` (_object | string_, required): Candidate agent profile object or JSON string (max 512KB, max 100 top-level keys, max nesting depth 6).
+    - `normalize` (_boolean_, optional, default `true`): Whether to auto-fill safe defaults and sanitize structure.
+- **Output**: Validation report containing `valid` (boolean), `normalizedProfile`, `missingOptionalFields`, `validationErrors`, and `unknownProperties`.
+
+---
+
+## Universal Agent Profile
+
+The Universal Agent Profile is a canonical, ecosystem-neutral descriptor for AI agents and MCP servers.
+
+```typescript
+export interface AgentProfile {
+	id: string; // Canonical unique identifier: `${source.type}:${source.identifier}@${version}`
+	name: string; // Display name
+	description: string; // Functional description
+	source: {
+		type: "mcp-registry" | "a2a" | "github" | "custom" | "manual";
+		name: string; // Source catalog or origin name
+		url?: string; // Repository or listing URL
+		identifier: string; // Original package or server identifier
+	};
+	classification: {
+		capabilities: string[]; // Functional capabilities (e.g. "mcp:server", "remote-mcp")
+		skills: string[]; // Discrete verified skills (never fabricated)
+		categories: string[]; // Taxonomy classifications (e.g. "mcp-server")
+		tags: string[]; // Searchable tags and metadata keywords
+	};
+	communication: {
+		protocols: string[]; // Supported protocols (e.g. "mcp", "stdio", "http")
+		framework?: string; // Underlying framework (e.g. "modelcontextprotocol")
+		endpoint?: string; // Publicly reachable endpoint URL if declared
+	};
+	authentication: {
+		required: boolean; // Whether authentication is required
+		declaredMethods: string[]; // Declared auth types (e.g. "none", "bearer", "oauth2")
+	};
+	io: {
+		supportedInputs: string[]; // Accepted input formats (e.g. ["tool-call"])
+		supportedOutputs: string[]; // Generated output formats (e.g. ["tool-result"])
+	};
+	metadata: {
+		version: string; // Semantic version string
+		provider?: string; // Author, organization, or publisher
+		lastUpdated?: string; // ISO timestamp of last modification
+		discoveryTimestamp: string; // ISO timestamp of ingestion
+	};
+	trust: {
+		status: "declared" | "verified" | "observed";
+		notes?: string; // Evaluation context (e.g. unverified declared metadata)
+	};
+}
+```
+
+### Trust Status Model
+
+- **`declared`**: The default status for all profiles imported from public registries, catalogs, or manual inputs. All metadata is self-reported by the publisher and has not undergone independent verification.
+- **`verified`**: Reserved for identities or capabilities verified through cryptographic signatures, authenticated DNS records, or trusted attestation pipelines.
+- **`observed`**: Reserved for runtime attributes verified through active empirical testing (e.g., successful protocol handshakes, latency measurements).
+
+---
+
+## Discovery Connector Architecture
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│                      DiscoveryEngine                        │
+│   (pluggable connector registry & deduplication pipeline)   │
+└──────────────┬──────────────────────────────┬───────────────┘
+               │                              │
+               ▼                              ▼
+┌──────────────────────────────┐ ┌─────────────────────────────┐
+│     McpRegistryConnector     │ │  (Future: A2A, GitHub, etc.)│
+│ (official MCP registry API)  │ │                             │
+└──────────────┬───────────────┘ └─────────────────────────────┘
+               │
+               ▼
+┌──────────────────────────────┐
+│  Normalization & Validation  │
+│  - maps raw server entries   │
+│  - preserves source origin   │
+│  - marks trust as "declared" │
+│  - strict Zod validation     │
+└──────────────────────────────┘
+```
+
+1. **Connector Interface (`DiscoveryConnector`)**: Pluggable interface defining `search()` and `getDetails()` contracts.
+2. **MCP Registry Client (`McpRegistryClient`)**: Communicates exclusively with the official registry (`https://registry.modelcontextprotocol.io`) with strict origin validation, configurable timeouts (8s default) with `AbortSignal`, and HTTP status mapping (404, 429, 5xx).
+3. **Normalization Service**: Converts heterogeneous upstream responses into standard `AgentProfile` models without fabricating unsupported capabilities.
+4. **Deduplication Engine**: Keyed on `${sourceType}:::${identifier}:::${version}` to filter duplicates while preserving distinct version manifests and providers.
+
+---
+
+### Agent Discovery Foundation Tools
+
+#### 6. `search_mcp_registry`
+
+Search published servers on the official Model Context Protocol Registry (`https://registry.modelcontextprotocol.io`). Returns normalized Universal Agent Profiles and pagination metadata.
+
+- **Inputs**:
+    - `query` (_string_, required, 3–200 chars): Search keyword or substring (minimum 3 characters after trimming).
+    - `limit` (_integer_, optional, default `20`, range `1`–`100`): Maximum profiles to return.
+    - `cursor` (_string_, optional): Opaque pagination cursor from a previous response.
+    - `latest_only` (_boolean_, optional, default `true`): Whether to return only the latest version of each server. Set `false` to include historical versions.
+- **Output**: JSON payload with `query`, `latestOnly`, `count`, `nextCursor`, `source`, and `profiles` array.
+
+#### 7. `get_mcp_server_details`
+
+Retrieve detailed metadata and server manifests for a specific server from the official MCP Registry, mapped into a Universal Agent Profile. Allows inspecting any individual historical version or latest release.
+
+- **Inputs**:
+    - `server_name` (_string_, required): Reverse-DNS or unique server identifier (e.g. `ac.inference.sh/mcp` or `io.github.test/server`).
+    - `version` (_string_, optional, default `"latest"`): Target semantic version string (e.g. `"1.0.0"`) or `"latest"`.
+- **Output**: Complete normalized `AgentProfile` JSON object.
+
+#### 8. `validate_agent_profile`
+
+Statelessly validate and normalize a candidate agent profile against the Universal Agent Profile schema. Detects schema violations, highlights missing optional fields, reports unknown properties, and applies safe defaults.
+
+- **Inputs**:
+    - `profile` (_object | string_, required): Candidate agent profile object or JSON string (max 512KB, max 100 top-level keys, max nesting depth 6).
+    - `normalize` (_boolean_, optional, default `true`): Whether to auto-fill safe defaults and sanitize structure.
+- **Output**: Validation report containing `valid` (boolean), `normalizedProfile`, `missingOptionalFields`, `validationErrors`, and `unknownProperties`.
+
+---
+
+## Universal Agent Profile
+
+The Universal Agent Profile is a canonical, ecosystem-neutral descriptor for AI agents and MCP servers.
+
+```typescript
+export interface AgentProfile {
+	id: string; // Canonical unique identifier: `${source.type}:${source.identifier}@${version}`
+	name: string; // Display name
+	description: string; // Functional description
+	source: {
+		type: "mcp-registry" | "a2a" | "github" | "custom" | "manual";
+		name: string; // Source catalog or origin name
+		url?: string; // Repository or listing URL
+		identifier: string; // Original package or server identifier
+	};
+	classification: {
+		capabilities: string[]; // Functional capabilities (e.g. "mcp:server", "remote-mcp")
+		skills: string[]; // Discrete verified skills (never fabricated)
+		categories: string[]; // Taxonomy classifications (e.g. "mcp-server")
+		tags: string[]; // Searchable tags and metadata keywords
+	};
+	communication: {
+		protocols: string[]; // Supported protocols (e.g. "mcp", "stdio", "http")
+		framework?: string; // Underlying framework (e.g. "modelcontextprotocol")
+		endpoint?: string; // Publicly reachable endpoint URL if declared
+	};
+	authentication: {
+		required: boolean; // Whether authentication is required
+		declaredMethods: string[]; // Declared auth types (e.g. "none", "bearer", "oauth2")
+	};
+	io: {
+		supportedInputs: string[]; // Accepted input formats (e.g. ["tool-call"])
+		supportedOutputs: string[]; // Generated output formats (e.g. ["tool-result"])
+	};
+	metadata: {
+		version: string; // Semantic version string
+		provider?: string; // Author, organization, or publisher
+		lastUpdated?: string; // ISO timestamp of last modification
+		discoveryTimestamp: string; // ISO timestamp of ingestion
+	};
+	trust: {
+		status: "declared" | "verified" | "observed";
+		notes?: string; // Evaluation context (e.g. unverified declared metadata)
+	};
+}
+```
+
+### Trust Status Model
+
+- **`declared`**: The default status for all profiles imported from public registries, catalogs, or manual inputs. All metadata is self-reported by the publisher and has not undergone independent verification.
+- **`verified`**: Reserved for identities or capabilities verified through cryptographic signatures, authenticated DNS records, or trusted attestation pipelines.
+- **`observed`**: Reserved for runtime attributes verified through active empirical testing (e.g., successful protocol handshakes, latency measurements).
+
+---
+
+## Discovery Connector Architecture
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│                      DiscoveryEngine                        │
+│   (pluggable connector registry & deduplication pipeline)   │
+└──────────────┬──────────────────────────────┬───────────────┘
+               │                              │
+               ▼                              ▼
+┌──────────────────────────────┐ ┌─────────────────────────────┐
+│     McpRegistryConnector     │ │  (Future: A2A, GitHub, etc.)│
+│ (official MCP registry API)  │ │                             │
+└──────────────┬───────────────┘ └─────────────────────────────┘
+               │
+               ▼
+┌──────────────────────────────┐
+│  Normalization & Validation  │
+│  - maps raw server entries   │
+│  - preserves source origin   │
+│  - marks trust as "declared" │
+│  - strict Zod validation     │
+└──────────────────────────────┘
+```
+
+1. **Connector Interface (`DiscoveryConnector`)**: Pluggable interface defining `search()` and `getDetails()` contracts.
+2. **MCP Registry Client (`McpRegistryClient`)**: Communicates exclusively with the official registry (`https://registry.modelcontextprotocol.io`) with strict origin validation, configurable timeouts (8s default) with `AbortSignal`, and HTTP status mapping (404, 429, 5xx).
+3. **Normalization Service**: Converts heterogeneous upstream responses into standard `AgentProfile` models without fabricating unsupported capabilities.
+4. **Deduplication Engine**: Keyed on `${sourceType}:::${identifier}:::${version}` to filter duplicates while preserving distinct version manifests and providers.
 
 ---
 
@@ -95,27 +329,28 @@ Parse and inspect a URL without making outbound network requests.
 ```text
 universal-mcp-toolkit/
 ├── src/
-│   ├── index.ts                     # Cloudflare Worker entry point and fetch handler
-│   ├── server.ts                    # McpServer factory and tool registration
+│   ├── index.ts                           # Cloudflare Worker entry point and fetch handler
+│   ├── server.ts                          # McpServer factory and tool registration
+│   ├── discovery/                         # Agent discovery subsystem
+│   │   ├── connectors/
+│   │   │   └── mcp-registry/              # Official MCP Registry connector & client
+│   │   ├── deduplication/                 # Profile deduplication utility
+│   │   ├── normalizer/                    # Profile normalization & validation service
+│   │   ├── search/                        # DiscoveryEngine multi-connector coordinator
+│   │   ├── types/                         # AgentProfile & DiscoveryConnector schemas
+│   │   └── index.ts                       # Barrel export for discovery subsystem
 │   ├── tools/
-│   │   ├── index.ts                 # Tool exports and registerAllTools() registry
-│   │   ├── types.ts                 # MCP ToolResult type interfaces
-│   │   └── developer/
-│   │       ├── base64-decode.ts     # base64_decode implementation
-│   │       ├── base64-encode.ts     # base64_encode implementation
-│   │       ├── hash-text.ts         # hash_text implementation
-│   │       ├── json-format.ts       # json_format implementation
-│   │       └── url-parse.ts         # url_parse implementation
+│   │   ├── developer/                     # Developer utility tools (json, base64, hash, url)
+│   │   ├── discovery/                     # Discovery tools (search, details, validate)
+│   │   ├── index.ts                       # Central tool registration (registerAllTools)
+│   │   └── types.ts                       # Tool result interfaces
 │   └── utils/
-│       └── validation.ts            # Common result builders and Base64 format validator
+│       └── validation.ts                  # Common validation and response utilities
 ├── tests/
-│   ├── mcp-protocol.test.ts         # End-to-end MCP client handshake and tool invocation tests
-│   ├── server.test.ts               # Server instantiation and calculator deprecation tests
-│   └── tools/
-│       ├── base64.test.ts           # Unit tests for base64 encoding and decoding
-│       ├── hash-text.test.ts        # Unit tests for cryptographic hashing
-│       ├── json-format.test.ts      # Unit tests for JSON formatting
-│       └── url-parse.test.ts        # Unit tests for URL inspection
+│   ├── discovery/                         # Unit tests for discovery subsystem
+│   ├── mcp-protocol.test.ts               # Protocol-level E2E tests for all 8 tools
+│   ├── server.test.ts                     # McpServer registration verification tests
+│   └── tools/                             # Unit tests for developer & discovery tools
 ├── CONTRIBUTING.md
 ├── LICENSE
 ├── package.json
@@ -294,7 +529,7 @@ console.log(
 3. **URL Secrecy Is Not a Security Boundary**:
     - Keeping your Worker endpoint URL confidential provides obscurity, not true security. If your URL is shared, exposed in logs, or discovered, external callers can execute requests.
 4. **Realistic Operational Risk**:
-    - Because the five current tools are pure, stateless functions, callers cannot compromise private databases, access server filesystems, execute shell commands, or perform SSRF network requests.
+    - Because the eight current tools are pure, stateless functions, callers cannot compromise private databases, access server filesystems, execute shell commands, or perform arbitrary network SSRF requests (discovery tools strictly restrict outbound queries to the pinned official MCP Registry origin).
     - The primary realistic risk is **quota consumption**: third parties calling your endpoint can consume your daily Cloudflare request allowance.
 5. **Future Authentication Roadmap**:
     - For future tool additions that interact with sensitive resources, third-party APIs, or private state, authentication (such as a Pre-Shared Secret verified via `Authorization: Bearer <token>`) can be added.

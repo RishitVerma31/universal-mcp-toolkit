@@ -2,21 +2,23 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createServer } from "../src/server.ts";
 
-test("server: instantiates McpServer and registers all 5 toolkit tools", () => {
+test("server: instantiates McpServer and registers all 8 toolkit tools", () => {
 	const server = createServer();
 	assert.ok(server, "Server should be defined");
 
-	// Inspect registered tools
-	// McpServer stores registered tools in internal structures or via handlers
 	const expectedTools = [
+		// 5 Developer Utilities (v0.1.0)
 		"json_format",
 		"base64_encode",
 		"base64_decode",
 		"hash_text",
 		"url_parse",
+		// 3 Agent Discovery Tools (v0.2.0)
+		"search_mcp_registry",
+		"get_mcp_server_details",
+		"validate_agent_profile",
 	];
 
-	// Verify internal registered tools map
 	const registeredTools = (server as any)["_registeredTools"];
 	assert.ok(registeredTools, "registered tools map should exist");
 
@@ -24,7 +26,13 @@ test("server: instantiates McpServer and registers all 5 toolkit tools", () => {
 		assert.ok(toolName in registeredTools, `Tool '${toolName}' must be registered`);
 	}
 
-	// Verify original calculator tools are completely removed
+	assert.equal(
+		Object.keys(registeredTools).length,
+		8,
+		"Server must register exactly eight tools",
+	);
+
+	// Verify original calculator tools remain completely removed
 	assert.equal(
 		"add" in registeredTools,
 		false,
