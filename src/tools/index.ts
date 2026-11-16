@@ -8,6 +8,8 @@ import { registerSearchMcpRegistryTool } from "./discovery/search-mcp-registry.t
 import { registerGetMcpServerDetailsTool } from "./discovery/get-mcp-server-details.ts";
 import { registerValidateAgentProfileTool } from "./discovery/validate-agent-profile.ts";
 import { registerDiscoverA2aAgentTool } from "./discovery/discover-a2a-agent.ts";
+import { registerSearchGithubAgentsTool } from "./discovery/search-github-agents.ts";
+import { registerGetGithubAgentDetailsTool } from "./discovery/get-github-agent-details.ts";
 
 export * from "./types.ts";
 
@@ -65,6 +67,16 @@ export {
 	handleDiscoverA2aAgent,
 	registerDiscoverA2aAgentTool,
 } from "./discovery/discover-a2a-agent.ts";
+export {
+	searchGithubAgentsInputSchema,
+	handleSearchGithubAgents,
+	registerSearchGithubAgentsTool,
+} from "./discovery/search-github-agents.ts";
+export {
+	getGithubAgentDetailsInputSchema,
+	handleGetGithubAgentDetails,
+	registerGetGithubAgentDetailsTool,
+} from "./discovery/get-github-agent-details.ts";
 
 export function registerAllTools(server: McpServer): void {
 	// 5 Developer Utilities (v0.1.0)
@@ -81,4 +93,8 @@ export function registerAllTools(server: McpServer): void {
 
 	// 1 A2A Discovery Tool (v0.3.0)
 	registerDiscoverA2aAgentTool(server);
+
+	// 2 GitHub Discovery Tools (v0.4.0)
+	registerSearchGithubAgentsTool(server);
+	registerGetGithubAgentDetailsTool(server);
 }

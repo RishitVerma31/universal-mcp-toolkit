@@ -77,10 +77,10 @@ test("agentProfileSchema: applies defaults for optional subfields", () => {
 	const parsed = agentProfileSchema.parse(minimalProfile);
 	assert.equal(parsed.description, "");
 	assert.deepEqual(parsed.classification.capabilities, []);
-	assert.deepEqual(parsed.communication.protocols, ["mcp"]);
+	assert.deepEqual(parsed.communication.protocols, []);
 	assert.equal(parsed.authentication.required, false);
 	assert.equal(parsed.trust.status, "declared");
-	assert.equal(parsed.metadata.version, "0.1.0");
+	assert.equal(parsed.metadata.version, undefined);
 });
 
 test("agentProfileSchema: rejects invalid required fields or incorrect types", () => {

@@ -7,6 +7,7 @@ import type {
 import type { AgentProfile } from "../types/agent-profile.ts";
 import { McpRegistryConnector } from "../connectors/mcp-registry/connector.ts";
 import { A2AAgentCardConnector } from "../connectors/a2a/connector.ts";
+import { GitHubConnector } from "../connectors/github/connector.ts";
 import { deduplicateProfiles } from "../deduplication/deduplicator.ts";
 
 export class DiscoveryEngine {
@@ -18,9 +19,10 @@ export class DiscoveryEngine {
 				this.registerConnector(c);
 			}
 		} else {
-			// Register default MCP Registry and A2A connectors
+			// Register default MCP Registry, A2A, and GitHub connectors
 			this.registerConnector(new McpRegistryConnector());
 			this.registerConnector(new A2AAgentCardConnector());
+			this.registerConnector(new GitHubConnector());
 		}
 	}
 
