@@ -46,9 +46,10 @@ export type AgentClassification = z.infer<typeof agentClassificationSchema>;
 export const agentCommunicationSchema = z.object({
 	protocols: z
 		.array(z.string())
-		.min(1)
-		.default(["mcp"])
-		.describe("Supported transport protocols (e.g. streamable-http, sse, stdio, a2a)"),
+		.default([])
+		.describe(
+			"Supported transport protocols (e.g. streamable-http, sse, stdio, a2a). Empty if undeclared",
+		),
 	framework: z.string().optional().describe("Underlying agent framework if applicable"),
 	endpoint: httpUrlSchema.optional().describe("Publicly reachable endpoint URL if declared"),
 });
@@ -81,7 +82,10 @@ export const agentIOSchema = z.object({
 export type AgentIO = z.infer<typeof agentIOSchema>;
 
 export const agentMetadataSchema = z.object({
-	version: z.string().default("0.1.0").describe("Semver or version string"),
+	version: z
+		.string()
+		.optional()
+		.describe("Semver or software release version string if declared"),
 	provider: z.string().optional().describe("Author, publisher or organization name"),
 	lastUpdated: z.string().optional().describe("ISO timestamp when the source was last modified"),
 	discoveryTimestamp: z
@@ -90,6 +94,10 @@ export const agentMetadataSchema = z.object({
 	documentationUrl: httpUrlSchema.optional().describe("Documentation or specification URL"),
 	iconUrl: httpUrlSchema.optional().describe("Icon or avatar image URL"),
 	a2a: z.record(z.string(), z.unknown()).optional().describe("Protocol-specific A2A metadata"),
+	github: z
+		.record(z.string(), z.unknown())
+		.optional()
+		.describe("GitHub-specific repository and detection metadata"),
 	extra: z.record(z.string(), z.unknown()).optional().describe("Arbitrary extension metadata"),
 });
 export type AgentMetadata = z.infer<typeof agentMetadataSchema>;

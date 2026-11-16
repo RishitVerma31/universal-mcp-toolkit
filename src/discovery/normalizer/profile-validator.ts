@@ -126,20 +126,20 @@ export function validateAndNormalizeProfile(
 				tags: sanitizeStringArray(rawClassification.tags),
 			},
 			communication: {
-				protocols: rawProtocols.length > 0 ? rawProtocols : ["mcp"],
+				protocols: rawProtocols,
 				framework: sanitizeString(rawCommunication.framework, 100),
 				endpoint: sanitizeHttpUrl(rawCommunication.endpoint),
 			},
 			authentication: {
 				required: typeof rawAuth.required === "boolean" ? rawAuth.required : false,
-				declaredMethods: rawMethods.length > 0 ? rawMethods : ["none"],
+				declaredMethods: rawMethods,
 			},
 			io: {
 				supportedInputs: rawInputs.length > 0 ? rawInputs : ["text"],
 				supportedOutputs: rawOutputs.length > 0 ? rawOutputs : ["text"],
 			},
 			metadata: {
-				version: sanitizeString(rawMetadata.version, 50) || "0.1.0",
+				version: sanitizeString(rawMetadata.version, 50) || undefined,
 				provider: sanitizeString(rawMetadata.provider, 200),
 				lastUpdated: sanitizeString(rawMetadata.lastUpdated, 100),
 				discoveryTimestamp:

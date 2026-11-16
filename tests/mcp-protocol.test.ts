@@ -24,14 +24,14 @@ function getTextContent(res: { content?: Array<{ type: string; text?: string }> 
 	return block.text;
 }
 
-test("mcp protocol e2e: connects, initializes, and lists exactly 9 tools", async () => {
+test("mcp protocol e2e: connects, initializes, and lists exactly 11 tools", async () => {
 	const transport = createTestTransport();
 	const client = new Client({ name: "e2e-test-client", version: "1.0.0" });
 
 	await client.connect(transport);
 
 	const toolsList = await client.listTools();
-	assert.equal(toolsList.tools.length, 9);
+	assert.equal(toolsList.tools.length, 11);
 
 	const toolNames = toolsList.tools.map((t) => t.name);
 	const expectedTools = [
@@ -44,6 +44,8 @@ test("mcp protocol e2e: connects, initializes, and lists exactly 9 tools", async
 		"get_mcp_server_details",
 		"validate_agent_profile",
 		"discover_a2a_agent",
+		"search_github_agents",
+		"get_github_agent_details",
 	];
 
 	for (const expected of expectedTools) {
@@ -177,6 +179,38 @@ test("mcp protocol e2e: error handling returns isError=true without crashing", a
 	assert.equal(errA2a.isError, true);
 	assert.match(getTextContent(errA2a as any), /A2A Agent discovery failed|Security violation/);
 
+	// Invalid search_github_agents parameter (empty query)
+	const errGhSearch = await client.callTool({
+		name: "search_github_agents",
+		arguments: { query: "" },
+	});
+	assert.equal(errGhSearch.isError, true);
+	assert.match(getTextContent(errGhSearch as any), /Input validation error|cannot be empty/i);
+
+	// Invalid get_github_agent_details parameter (invalid owner with path traversal)
+	const errGhDetails = await client.callTool({
+		name: "get_github_agent_details",
+		arguments: { owner: "../bad", repo: "test" },
+	});
+	assert.equal(errGhDetails.isError, true);
+	assert.match(getTextContent(errGhDetails as any), /Input validation error|alphanumeric/i);
+
+	// Invalid get_mcp_server_details parameter (empty server_name)
+	const errMcpDetails = await client.callTool({
+		name: "get_mcp_server_details",
+		arguments: { server_name: "" },
+	});
+	assert.equal(errMcpDetails.isError, true);
+	assert.match(getTextContent(errMcpDetails as any), /Input validation error|cannot be empty/i);
+
+	// Invalid search_mcp_registry parameter (query < 3 chars)
+	const errMcpSearch = await client.callTool({
+		name: "search_mcp_registry",
+		arguments: { query: "ab" },
+	});
+	assert.equal(errMcpSearch.isError, true);
+	assert.match(getTextContent(errMcpSearch as any), /Input validation error|at least 3 characters/i);
+
 	await client.close();
 });
 
@@ -305,7 +339,7 @@ test("mcp protocol e2e: invokes discovery tools (validate_agent_profile, search_
 	await client.close();
 });
 
-test("mcp protocol e2e: full session connects, lists 9 tools, and calls all 9 tools", async () => {
+test("mcp protocol e2e: full session connects, lists 11 tools, and calls all 11 tools", async () => {
 	const originalFetch = globalThis.fetch;
 	try {
 		globalThis.fetch = (async (input: RequestInfo | URL) => {
@@ -383,16 +417,102 @@ test("mcp protocol e2e: full session connects, lists 9 tools, and calls all 9 to
 					{ status: 200, headers: { "Content-Type": "application/json" } },
 				);
 			}
+			if (urlStr.includes("api.github.com/search/repositories")) {
+				return new Response(
+					JSON.stringify({
+						total_count: 1,
+						incomplete_results: false,
+						items: [
+							{
+								id: 99901,
+								name: "langgraph",
+								full_name: "langchain-ai/langgraph",
+								private: false,
+								owner: { login: "langchain-ai", id: 101 },
+								html_url: "https://github.com/langchain-ai/langgraph",
+								description: "Build resilient language agents as graphs",
+								fork: false,
+								url: "https://api.github.com/repos/langchain-ai/langgraph",
+								created_at: "2024-01-01T00:00:00Z",
+								updated_at: "2024-06-01T00:00:00Z",
+								pushed_at: "2024-06-01T00:00:00Z",
+								homepage: "https://langchain-ai.github.io/langgraph/",
+								size: 1024,
+								stargazers_count: 5000,
+								watchers_count: 5000,
+								language: "Python",
+								forks_count: 600,
+								open_issues_count: 25,
+								default_branch: "main",
+								topics: ["agent", "langchain", "multi-agent"],
+								license: { key: "mit", name: "MIT License", spdx_id: "MIT" },
+							},
+						],
+					}),
+					{
+						status: 200,
+						headers: {
+							"Content-Type": "application/json",
+							"x-ratelimit-remaining": "50",
+						},
+					},
+				);
+			}
+			if (urlStr.includes("api.github.com/repos/langchain-ai/langgraph/readme")) {
+				return new Response(
+					JSON.stringify({
+						name: "README.md",
+						path: "README.md",
+						sha: "readme_sha",
+						size: 60,
+						url: "https://api.github.com/repos/langchain-ai/langgraph/contents/README.md",
+						html_url: "https://github.com/langchain-ai/langgraph/blob/main/README.md",
+						type: "file",
+						content: Buffer.from(
+							"# LangGraph\nagent.run()\ntools = [calculator]",
+						).toString("base64"),
+						encoding: "base64",
+					}),
+					{ status: 200, headers: { "Content-Type": "application/json" } },
+				);
+			}
+			if (urlStr.includes("api.github.com/repos/langchain-ai/langgraph")) {
+				return new Response(
+					JSON.stringify({
+						id: 99901,
+						name: "langgraph",
+						full_name: "langchain-ai/langgraph",
+						private: false,
+						owner: { login: "langchain-ai", id: 101 },
+						html_url: "https://github.com/langchain-ai/langgraph",
+						description: "Build resilient language agents as graphs",
+						fork: false,
+						url: "https://api.github.com/repos/langchain-ai/langgraph",
+						created_at: "2024-01-01T00:00:00Z",
+						updated_at: "2024-06-01T00:00:00Z",
+						pushed_at: "2024-06-01T00:00:00Z",
+						size: 1024,
+						stargazers_count: 5000,
+						watchers_count: 5000,
+						language: "Python",
+						forks_count: 600,
+						open_issues_count: 25,
+						default_branch: "main",
+						topics: ["agent", "langchain", "multi-agent"],
+					}),
+					{ status: 200, headers: { "Content-Type": "application/json" } },
+				);
+			}
 			return new Response("Not Found", { status: 404 });
 		}) as typeof fetch;
 
 		const transport = createTestTransport();
-		const client = new Client({ name: "e2e-all-9-client", version: "1.0.0" });
+		const client = new Client({ name: "e2e-all-11-client", version: "1.0.0" });
 		await client.connect(transport);
 
 		// List tools
 		const toolsList = await client.listTools();
-		assert.equal(toolsList.tools.length, 9);
+		assert.equal(toolsList.tools.length, 11);
 
 		// 1. json_format
 		const r1 = await client.callTool({
@@ -467,6 +587,31 @@ test("mcp protocol e2e: full session connects, lists 9 tools, and calls all 9 to
 		assert.equal(s9.profile.source.type, "a2a");
 		assert.equal(s9.profile.trust.status, "declared");
 		assert.equal(s9.profile.classification.skills[0], "echo");
+
+		// 10. search_github_agents
+		const r10 = await client.callTool({
+			name: "search_github_agents",
+			arguments: { query: "langgraph" },
+		});
+		assert.equal(r10.isError, undefined);
+		const s10 = JSON.parse(getTextContent(r10 as any));
+		assert.equal(s10.count, 1);
+		assert.equal(s10.repositories[0].name, "langgraph");
+		assert.equal(s10.profiles[0].id, "github:langchain-ai/langgraph");
+		assert.equal(s10.profiles[0].trust.status, "declared");
+
+		// 11. get_github_agent_details
+		const r11 = await client.callTool({
+			name: "get_github_agent_details",
+			arguments: { owner: "langchain-ai", repo: "langgraph", include_readme: true },
+		});
+		assert.equal(r11.isError, undefined);
+		const s11 = JSON.parse(getTextContent(r11 as any));
+		assert.equal(s11.status, "success");
+		assert.equal(s11.repository.name, "langgraph");
+		assert.ok(s11.readme);
+		assert.equal(s11.profile.source.type, "github");
+		assert.equal(s11.profile.trust.status, "declared");
 
 		await client.close();
 	} finally {

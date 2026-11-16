@@ -57,10 +57,11 @@ test("A2AAgentCardConnector: retrieves details by URL and handles search queries
 	assert.equal(nonUrlResult.profiles.length, 0);
 });
 
-test("DiscoveryEngine: operates with both default connectors registered", async () => {
+test("DiscoveryEngine: operates with all default connectors registered", async () => {
 	const engine = new DiscoveryEngine();
 	const connectors = engine.listConnectors();
-	assert.equal(connectors.length, 2);
+	assert.equal(connectors.length, 3);
 	assert.equal(connectors[0].id, "mcp-registry");
 	assert.equal(connectors[1].id, "a2a");
+	assert.equal(connectors[2].id, "github");
 });
